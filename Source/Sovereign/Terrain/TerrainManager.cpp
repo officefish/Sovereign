@@ -2,6 +2,15 @@
 
 #include "./TerrainManager.h"
 
+const int32 UTerrainManager::ONE_DAY = 1;
+const uint8 UTerrainManager::NUM_SEASONS = 4;
+const uint8 UTerrainManager::NUM_CHANGE_SEASON_INDICES = 8;
+const int32 UTerrainManager::WINTER_REMAINING_DAYS = 60;
+const int32 UTerrainManager::NUM_DAYS_IN_SEASON = 90;
+const int32 UTerrainManager::HOURS_IN_DAY = 24;
+const int32 UTerrainManager::MAX_WINTER_SEASON_PRECISION = 335;
+const int32 UTerrainManager::MAX_WINTER_SEASON_CONTINUANCE = 345;
+
 UTerrainManager::UTerrainManager() {
 
 	// Initialize references to terrain static mesh actors
@@ -47,40 +56,101 @@ UTerrainManager::UTerrainManager() {
 		}
 	}
 
+	// Fill ChangeSeasonSchedule with zero values
+	for (uint8 i = 0; i < UTerrainManager::NUM_CHANGE_SEASON_INDICES; ++i)
+		ChangeSeasonSchedule.Add(0);
+
 }
 
-void UTerrainManager::SetSeason(uint8 Season) {
+void UTerrainManager::CreateChangeSeasonShedule(uint8 Precision, uint8 Continuance) {
 
-	if (!TerrainAccessories) {
-		UE_LOG(LogTemp, Warning, TEXT("SetSeason pass with no effect, no TerrainAccessories found"), Season);
-		return;
-	}
+	int32 NumDays = UTerrainManager::WINTER_REMAINING_DAYS;
 
-	UMaterialInstanceDynamic* DynamicMaterialInst = TerrainAccessories->GetSeasonTerrainMaterialInst(Season);
-	if (!DynamicMaterialInst) {
-		UE_LOG(LogTemp, Warning, TEXT("TerrainMaterial for season:%d in TerrainAccessories not selected"), Season);
-		return;
-	}
-
-	for (AStaticMeshActor* TerrainActor : TerrainActors) {
-		UStaticMeshComponent* Component = TerrainActor->GetStaticMeshComponent();
-		if (Component)
-			Component->SetMaterial(0, DynamicMaterialInst);
-	}
-
-	DynamicMaterialInst = TerrainAccessories->GetSeasonLandscapeMaterialInst(Season);
-	if (!DynamicMaterialInst) {
-		UE_LOG(LogTemp, Warning, TEXT("Landscape for season:%d in TerrainAccessories not selected"), Season);
-		return;
-	}
-
-	if (!Landscape) {
-		UE_LOG(LogTemp, Warning, TEXT("SetSeason pass with no effect, no Landscape found"), Season);
-		return;
-	}
-
-	for (ULandscapeComponent* LandscapeComponent : Landscape->LandscapeComponents) {
-		LandscapeComponent->SetMaterial(0, DynamicMaterialInst);
+	for (uint8 i = 0; i < UTerrainManager::NUM_SEASONS; ++i) {
+		int32 SeasonPrecision = FMath::RoundToInt(Precision * FMath::RandRange(-1, 1));
+		NumDays += SeasonPrecision;
+		ChangeSeasonSchedule[(2 * i)] // Constant Season
+			= FMath::Clamp(NumDays, 1, UTerrainManager::MAX_WINTER_SEASON_PRECISION);
+		ChangeSeasonSchedule[(2 * i) + 1] // Off-season
+			= FMath::Clamp(NumDays + Continuance, 1, UTerrainManager::MAX_WINTER_SEASON_CONTINUANCE);
+		NumDays -= SeasonPrecision;
+		NumDays += UTerrainManager::NUM_DAYS_IN_SEASON;
 	}
 }
+
+int32 UTerrainManager::GetCurrentChangeSeasonIndex(int32 NumDays) {
+	for (uint8 i = 0; i < UTerrainManager::NUM_CHANGE_SEASON_INDICES; ++i)
+		if (NumDays < ChangeSeasonSchedule[i]) return i;
+	return ChangeSeasonSchedule.Num() - UTerrainManager::ONE_DAY;
+}
+
+int32 UTerrainManager::GetChangeSeasonTotalHours(int32 NumDays) {
+	for (uint8 i = 0; i < UTerrainManager::NUM_CHANGE_SEASON_INDICES; ++i)
+		if (NumDays < ChangeSeasonSchedule[i])
+			return (ChangeSeasonSchedule[i] - UTerrainManager::ONE_DAY) * UTerrainManager::HOURS_IN_DAY;
+
+	return  (ChangeSeasonSchedule[ChangeSeasonSchedule.Num() - 1]
+		- UTerrainManager::ONE_DAY)
+		* UTerrainManager::HOURS_IN_DAY;
+}
+
+inline void UTerrainManager::ChangeSeasonEntryDateTime(const FDateTime& InDateTime) {
+	CurrentChangeSeasonIndex = GetCurrentChangeSeasonIndex(InDateTime.GetDayOfYear());
+}
+
+void UTerrainManager::ChangeSeasonProgressEveryDay(const FDateTime& InDateTime) {
+
+	const int32 DayOfYear = InDateTime.GetDayOfYear();
+
+	int32 NewChangeSeasonIndex = GetCurrentChangeSeasonIndex(DayOfYear);
+	if (CurrentChangeSeasonIndex != NewChangeSeasonIndex) {
+		CurrentChangeSeasonIndex = NewChangeSeasonIndex;
+
+		bChangeSeasonInProgress = (CurrentChangeSeasonIndex % 2) ? true : false;
+		if (bChangeSeasonInProgress) {
+			ChangeSeasonInitialHours = (InDateTime.GetDayOfYear()
+				- UTerrainManager::ONE_DAY)
+				* UTerrainManager::HOURS_IN_DAY;
+			ChangeSeasonTotalHours = GetChangeSeasonTotalHours(DayOfYear);
+		}
+
+		TerrainMaterialInst = TerrainAccessories->GetTerrainSeason_MI(CurrentChangeSeasonIndex);
+
+		if (TerrainMaterialInst) {
+			for (AStaticMeshActor* TerrainActor : TerrainActors) {
+				UStaticMeshComponent* Component = TerrainActor->GetStaticMeshComponent();
+				if (Component)
+					Component->SetMaterial(0, TerrainMaterialInst);
+			}
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("BadCast TerrainMaterialInst to MaterialInterface"));
+		}
+
+	}
+}
+
+void UTerrainManager::ChangeSeasonProgressEveryHour(const FDateTime& InDateTime) {
+	if (bChangeSeasonInProgress) {
+		int32 CurrentHours
+			= (InDateTime.GetDayOfYear() - UTerrainManager::ONE_DAY)
+			* UTerrainManager::HOURS_IN_DAY
+			+ InDateTime.GetHour();
+
+		float ChangeSeasonProgress = UKismetMathLibrary::NormalizeToRange(
+			CurrentHours,
+			ChangeSeasonInitialHours,
+			ChangeSeasonTotalHours);
+
+		if (ChangeSeasonProgress > 1.0) {
+			ChangeSeasonProgress = 1.0;
+			bChangeSeasonInProgress = false;
+		}
+
+		auto SeasonMaterial = Cast<UMaterialInstanceDynamic>(TerrainMaterialInst);
+		if (SeasonMaterial)
+			SeasonMaterial->SetScalarParameterValue("BlendAlpha", ChangeSeasonProgress);
+	}
+}
+
 

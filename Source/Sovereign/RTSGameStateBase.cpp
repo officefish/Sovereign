@@ -6,7 +6,7 @@
 ARTSGameStateBase::ARTSGameStateBase() {
 	PrimaryActorTick.bCanEverTick = true;
 
-	TimeMamager = CreateDefaultSubobject<UTimeManager>(TEXT("TimeManager"));
+	TimeManager = CreateDefaultSubobject<UTimeManager>(TEXT("TimeManager"));
 
 	EnvironmentManager = CreateDefaultSubobject<UEnvironmentManager>(TEXT("EnvironmentManager"));
 
@@ -20,7 +20,13 @@ void ARTSGameStateBase::BeginPlay() {
 	Super::BeginPlay();
 	StoryDateTime = FDateTime(1400, 1, 7, 6, 0, 0);
 
-	TimeMamager->InitializeDateTime(StoryDateTime);
+	TimeManager->InitializeDateTime(StoryDateTime);
+
+	const uint8 ChangeSeasonPrecision = 7;
+	const uint8 ChangeSeasonContinuance = 14;
+
+	TerrainManager->CreateChangeSeasonShedule(ChangeSeasonPrecision, ChangeSeasonContinuance);
+	TerrainManager->ChangeSeasonEntryDateTime(StoryDateTime);
 
 	PreviousDateTime = StoryDateTime;
 
@@ -54,13 +60,13 @@ double ARTSGameStateBase::GetDateTimeAcceleration(int32 DateTimeSpeedMode) {
 
 void ARTSGameStateBase::SetDateTimeSpeedMode(int32 DateTimeSpeedMode) {
 	double Accelertion = GetDateTimeAcceleration(DateTimeSpeedMode);
-	TimeMamager->SetAcceleration(Accelertion);
+	TimeManager->SetAcceleration(Accelertion);
 }
 
 void ARTSGameStateBase::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	CurrentDateTime = TimeMamager->GetCurrentDateTime();
+	CurrentDateTime = TimeManager->GetCurrentDateTime();
 
 	EnvironmentManager->CurrentDateTime = CurrentDateTime;
 	EnvironmentManager->UpdateSun();
@@ -68,38 +74,26 @@ void ARTSGameStateBase::Tick(float DeltaTime) {
 	CheckDateTimeCycles();
 
 	PreviousDateTime = CurrentDateTime;
-	//if (EnvironmentManager)
-	//	EnvironmentManager->SetCurrentDateTime(CurrentDateTime);
-
-	//FString DateTimeString = CurrentDateTime.ToString();
-	//if (GEngine)
-	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, DateTimeString);
-
-	//UE_LOG(LogTemp, Warning, TEXT("%s"), *DateTimeString);
 }
 
 inline void ARTSGameStateBase::CheckDateTimeCycles() {
 	CheckNextDayCycle();
-	CheckNextSeasonCycle();
+	CheckNextHourCycle();
 }
 
 inline void ARTSGameStateBase::CheckNextDayCycle() {
 	int32 CurrentDay = CurrentDateTime.GetDay();
 	int32 PreviousDay = PreviousDateTime.GetDay();
 	if (CurrentDay != PreviousDay) {
-		// If complex logic here, should use native event instead
-		//UE_LOG(LogTemp, Warning, TEXT("CurrentDay: %d, PreviousDay: %d"), CurrentDay, PreviousDay);
-		++seasonIndex;
-		seasonIndex = (seasonIndex <= 3) ? seasonIndex : 0;
-		TerrainManager->SetSeason(seasonIndex);
+		TerrainManager->ChangeSeasonProgressEveryDay(CurrentDateTime);
 	}
 }
 
-inline void ARTSGameStateBase::CheckNextSeasonCycle() {
-	uint8 CurrentSeason = UTimeFunctionLibrary::GetSeason(CurrentDateTime.GetMonth());
-	uint8 PreviousSeason = UTimeFunctionLibrary::GetSeason(PreviousDateTime.GetMonth());
-	if (CurrentSeason != PreviousSeason) {
-		// If complex logic here, should use native event instead
-		//UE_LOG(LogTemp, Warning, TEXT("CurrentSeason: %d, PreviousSeason: %d"), CurrentSeason, PreviousSeason);
+
+inline void ARTSGameStateBase::CheckNextHourCycle() {
+	int32 CurrentHour = CurrentDateTime.GetHour();
+	int32 PreviousHour = PreviousDateTime.GetHour();
+	if (CurrentHour != PreviousHour) {
+		TerrainManager->ChangeSeasonProgressEveryHour(CurrentDateTime);
 	}
 }

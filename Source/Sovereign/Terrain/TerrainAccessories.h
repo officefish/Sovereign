@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "MaterialEditingLibrary.h"
 #include "./../Generic/MaterialFactoryNewExtend.h"
 #include "TerrainAccessories.generated.h"
 
@@ -16,62 +17,49 @@ class SOVEREIGN_API ATerrainAccessories : public AActor
 
 public:
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Generic")
-	UMaterialFactoryNewExtend* MaterialFactory;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
+	UMaterial* TerrainDiffuseConstMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
-	UMaterial* TerrainWinterMaterial;
+	UMaterial* TerrainDiffuseBlendMaterial;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "TerrainMaterial")
+	UMaterialInstanceDynamic* TerrainDiffuseConstMaterialInst;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "TerrainMaterial")
+	UMaterialInstanceDynamic* TerrainDiffuseBlendMaterialInst;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
-	UMaterial* TerrainSpringMaterial;
+	UTexture* WinterTerrainTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
-	UMaterial* TerrainSummerMaterial;
+	UTexture* SpringTerrainTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
-	UMaterial* TerrainFallMaterial;
+	UTexture* SummerTerrainTexture;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandscapeMaterial")
-	UMaterial* LandscapeWinterMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
+	UTexture* FallTerrainTexture;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandscapeMaterial")
-	UMaterial* LandscapeSpringMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
+	UTexture* BaseNormal;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandscapeMaterial")
-	UMaterial* LandscapeSummerMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TerrainMaterial")
+	UTexture* AdditionalNormal;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandscapeMaterial")
-	UMaterial* LandscapeFallMaterial;
-
-	UPROPERTY()
-	TArray<UMaterialInstanceDynamic*> TerrainMaterialInstances;
-
-	UPROPERTY()
-	TArray<UMaterialInstanceDynamic*> LandscapeMaterialInstances;
 
 public:
-	// Sets default values for this actor's properties
 	ATerrainAccessories();
+
+	UMaterialInterface* GetTerrainSeason_MI(uint8 Season);
+	UMaterialInterface* GetTerrainConstantSeason_MI(uint8 Season);
+	UMaterialInterface* GetTerrainBlendSeason_MI(uint8 FromSeason, uint8 ToSeason, float Progress);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	UFUNCTION(BlueprintCallable, Category = "Material")
-	UMaterialInstanceDynamic* GetSeasonTerrainMaterialInst(uint8 Season);
-
-	UFUNCTION(BlueprintCallable, Category = "Material")
-	UMaterialInstanceDynamic* GetSeasonLandscapeMaterialInst(uint8 Season);
-
-	UFUNCTION()
-	void ValidateTerrainInstances();
-
-	UFUNCTION()
-	void ValidateLandscapeInstances();
-
 private:
-	void generate_TerrainFallToWinterMaterial();
-	void generate_TerrainWinterToSpringMaterial();
-	void generate_TerrainSpringToSummerMaterial();
-	void generate_TerrainSummerToFallMaterial();
+
+	UTexture* GetTerrainSeasonTexture(uint8 Season);
 };
 
 

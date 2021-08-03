@@ -19,7 +19,7 @@ class SOVEREIGN_API ARTSGameStateBase : public AGameStateBase
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UTimeManager* TimeMamager;
+	UTimeManager* TimeManager;
 
 	UPROPERTY()
 	UEnvironmentManager* EnvironmentManager;
@@ -29,6 +29,8 @@ class SOVEREIGN_API ARTSGameStateBase : public AGameStateBase
 
 	UPROPERTY()
 	UTerrainManager* TerrainManager;
+
+
 
 public:
 
@@ -59,8 +61,6 @@ private:
 	double GetDateTimeAcceleration(int32 DateTimeSpeedMode);
 	void CheckDateTimeCycles();
 	void CheckNextDayCycle();
-	void CheckNextSeasonCycle();
-
-	uint8 seasonIndex = 0;
+	void CheckNextHourCycle();
 
 };

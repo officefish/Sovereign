@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Misc/DateTime.h"
+#include "Math/UnrealMathUtility.h"
 #include "TimeManager.generated.h"
 
 UENUM(BlueprintType)
@@ -37,6 +38,9 @@ class SOVEREIGN_API UTimeManager : public UObject
 	double Acceleration;
 
 	UPROPERTY()
+	TArray<int32> ChangeSeasonSchedule;
+
+	UPROPERTY()
 	bool bPauseFlag = false;
 
 public:
@@ -52,6 +56,8 @@ public:
 
 	double GetCurrentTotalSeconds();
 	void SetAcceleration(double inSeconds);
+
+
 };
 
 UCLASS()

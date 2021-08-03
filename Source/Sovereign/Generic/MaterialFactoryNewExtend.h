@@ -6,12 +6,32 @@
 #include "UObject/ObjectMacros.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "AssetRegistryModule.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialExpressionBlendMaterialAttributes.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionAppendVector.h"
 #include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "MaterialFactoryNewExtend.generated.h"
+
+USTRUCT(BlueprintType)
+struct SOVEREIGN_API FBlendMaterialInputTextures {
+
+	GENERATED_BODY()
+
+	UPROPERTY()
+	UTexture* TopDiffuseTexture;
+
+	UPROPERTY()
+	UTexture* BottomDiffuseTexture;
+
+	UPROPERTY()
+	UTexture* BaseNormalTexture;
+
+	UPROPERTY()
+	UTexture* AdditionalNormalTexture;
+};
 
 USTRUCT(BlueprintType)
 struct SOVEREIGN_API FBlendMaterialInputs {
@@ -29,6 +49,9 @@ struct SOVEREIGN_API FBlendMaterialInputs {
 
 	UPROPERTY()
 	UMaterial* BottomMaterial;
+
+	UPROPERTY()
+	UObject* Owner;
 };
 
 /**
@@ -49,5 +72,11 @@ public:
 
 	UMaterial* FactoryCreateNewBlend(const FBlendMaterialInputs& Inputs);
 
+	UMaterial* FactoryCreateNewBaseColorBlend(const FBlendMaterialInputs& Inputs);
+
 	UMaterialExpressionMakeMaterialAttributes* GetMaterialAttributes(UMaterial* From, UMaterial* To);
+
+private:
+
+	FBlendMaterialInputTextures GetInputsTextures(const FBlendMaterialInputs& Inputs);
 };

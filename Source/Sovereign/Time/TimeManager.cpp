@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "./TimeManager.h"
 
+
 void UTimeManager::InitializeDateTime(const FDateTime& StoryDateTime) {
 	DeltaSeconds = (FDateTime::Now() - StoryDateTime).GetTotalSeconds();
 }
